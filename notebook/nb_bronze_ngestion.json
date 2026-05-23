@@ -1,5 +1,5 @@
 {
-	"name": "Notebook 1",
+	"name": "nb_bronze_ngestion",
 	"properties": {
 		"nbformat": 4,
 		"nbformat_minor": 2,
@@ -17,7 +17,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "cc71eff6-af44-4eb5-b082-c01073bf493d"
+				"spark.autotune.trackingId": "68936b3a-d13f-4b61-8147-ce14b2dac8a6"
 			}
 		},
 		"metadata": {
@@ -90,7 +90,7 @@
 					"\n",
 					"print(\"✅ Data written successfully!\")"
 				],
-				"execution_count": 4
+				"execution_count": 5
 			}
 		]
 	}
