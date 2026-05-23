@@ -17,7 +17,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "68936b3a-d13f-4b61-8147-ce14b2dac8a6"
+				"spark.autotune.trackingId": "b639459b-533b-4803-a1c4-28ac0dbba76d"
 			}
 		},
 		"metadata": {
@@ -64,7 +64,7 @@
 					"\n",
 					"display(customers_df)"
 				],
-				"execution_count": 1
+				"execution_count": 7
 			},
 			{
 				"cell_type": "code",
@@ -78,7 +78,7 @@
 					"\n",
 					"display(bronze_df)"
 				],
-				"execution_count": 2
+				"execution_count": 8
 			},
 			{
 				"cell_type": "code",
@@ -90,7 +90,104 @@
 					"\n",
 					"print(\"✅ Data written successfully!\")"
 				],
-				"execution_count": 5
+				"execution_count": 9
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"from pyspark.sql.functions import *\n",
+					"from pyspark.sql.types import *\n",
+					"\n",
+					"sales_df = spark.read.format(\"csv\") \\\n",
+					"    .option(\"header\", \"true\") \\\n",
+					"    .option(\"inferSchema\", \"true\") \\\n",
+					"    .load(\"abfss://retail-data@etldevstorage1.dfs.core.windows.net/sales/*\")\n",
+					"\n",
+					"display(sales_df)"
+				],
+				"execution_count": 10
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"bronze_df = sales_df \\\n",
+					"    .withColumn(\"file_path\", input_file_name()) \\\n",
+					"    .withColumn(\"last_update_ts\", current_timestamp())\n",
+					"\n",
+					"display(bronze_df)"
+				],
+				"execution_count": 11
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"bronze_df.write.format(\"delta\") \\\n",
+					"    .mode(\"overwrite\") \\\n",
+					"    .option(\"overwriteSchema\", \"true\") \\\n",
+					"    .save(\"abfss://bronze@etldevstorage1.dfs.core.windows.net/sales/\")\n",
+					"\n",
+					"print(\"✅ Data written successfully!\")"
+				],
+				"execution_count": 12
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"from pyspark.sql.functions import *\n",
+					"from pyspark.sql.types import *\n",
+					"\n",
+					"sales_orders_df = spark.read.format(\"csv\") \\\n",
+					"    .option(\"header\", \"true\") \\\n",
+					"    .option(\"inferSchema\", \"true\") \\\n",
+					"    .load(\"abfss://retail-data@etldevstorage1.dfs.core.windows.net/sales_orders/*\")\n",
+					"\n",
+					"display(sales_orders_df)"
+				],
+				"execution_count": 14
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"bronze_df = sales_orders_df \\\n",
+					"    .withColumn(\"file_path\", input_file_name()) \\\n",
+					"    .withColumn(\"last_update_ts\", current_timestamp())\n",
+					"\n",
+					"display(bronze_df)\n",
+					"\n",
+					"bronze_df.write.format(\"delta\") \\\n",
+					"    .mode(\"overwrite\") \\\n",
+					"    .option(\"overwriteSchema\", \"true\") \\\n",
+					"    .save(\"abfss://bronze@etldevstorage1.dfs.core.windows.net/sales_orders/\")\n",
+					"\n",
+					"print(\"✅ Data written successfully!\")\n",
+					"\n",
+					""
+				],
+				"execution_count": 20
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"bronze_df.write.format(\"csv\") \\\n",
+					"    .mode(\"overwrite\") \\\n",
+					"    .option(\"overwriteSchema\", \"true\") \\\n",
+					"    .save(\"abfss://bronze@etldevstorage1.dfs.core.windows.net/sales_orders/\")\n",
+					"\n",
+					"print(\"✅ Data written successfully!\")"
+				],
+				"execution_count": 22
 			}
 		]
 	}
