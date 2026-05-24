@@ -1,0 +1,56 @@
+{
+	"name": "Pipeline 1",
+	"properties": {
+		"activities": [
+			{
+				"name": "foreach_bronze_tables",
+				"type": "ForEach",
+				"dependsOn": [],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@createArray('customers','sales','sales_orders')",
+						"type": "Expression"
+					},
+					"activities": [
+						{
+							"name": "nb_process_bronze",
+							"type": "SynapseNotebook",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"notebook": {
+									"referenceName": "nb_bronze_ngestion",
+									"type": "NotebookReference"
+								},
+								"parameters": {
+									"table_name": {
+										"value": "@item()",
+										"type": "string"
+									},
+									"source_path": {
+										"value": "@concat('abfss://retail-data@etldevstorage1.dfs.core.windows.net/',item(),'/*')",
+										"type": "string"
+									},
+									"target_path": {
+										"value": "@concat('abfss://bronze@etldevstorage1.dfs.core.windows.net",
+										"type": "string"
+									}
+								},
+								"snapshot": true
+							}
+						}
+					]
+				}
+			}
+		],
+		"annotations": []
+	}
+}
