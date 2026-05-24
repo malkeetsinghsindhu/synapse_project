@@ -17,7 +17,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "b639459b-533b-4803-a1c4-28ac0dbba76d"
+				"spark.autotune.trackingId": "0b1ae473-b01f-4574-b43f-26fd2f3336bd"
 			}
 		},
 		"metadata": {
@@ -142,8 +142,8 @@
 					"collapsed": false
 				},
 				"source": [
-					"from pyspark.sql.functions import *\n",
-					"from pyspark.sql.types import *\n",
+					"# Cell 1 - Read\n",
+					"from pyspark.sql.functions import input_file_name, current_timestamp\n",
 					"\n",
 					"sales_orders_df = spark.read.format(\"csv\") \\\n",
 					"    .option(\"header\", \"true\") \\\n",
@@ -160,34 +160,34 @@
 					"collapsed": false
 				},
 				"source": [
+					"# Cell 2 - Add metadata\n",
 					"bronze_df = sales_orders_df \\\n",
 					"    .withColumn(\"file_path\", input_file_name()) \\\n",
 					"    .withColumn(\"last_update_ts\", current_timestamp())\n",
 					"\n",
-					"display(bronze_df)\n",
-					"\n",
-					"bronze_df.write.format(\"delta\") \\\n",
-					"    .mode(\"overwrite\") \\\n",
-					"    .option(\"overwriteSchema\", \"true\") \\\n",
-					"    .save(\"abfss://bronze@etldevstorage1.dfs.core.windows.net/sales_orders/\")\n",
-					"\n",
-					"print(\"✅ Data written successfully!\")\n",
-					"\n",
-					""
+					"display(bronze_df)"
 				],
-				"execution_count": 20
+				"execution_count": 15
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"bronze_df.write.format(\"csv\") \\\n",
+					"# Cell 3 - Write to bronze\n",
+					"bronze_df.write.format(\"delta\") \\\n",
 					"    .mode(\"overwrite\") \\\n",
 					"    .option(\"overwriteSchema\", \"true\") \\\n",
 					"    .save(\"abfss://bronze@etldevstorage1.dfs.core.windows.net/sales_orders/\")\n",
 					"\n",
 					"print(\"✅ Data written successfully!\")"
 				],
-				"execution_count": 22
+				"execution_count": 16
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					""
+				],
+				"execution_count": null
 			}
 		]
 	}
