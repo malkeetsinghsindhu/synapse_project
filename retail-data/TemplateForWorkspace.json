@@ -1,0 +1,521 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"workspaceName": {
+			"type": "string",
+			"metadata": "Workspace name",
+			"defaultValue": "retail-data"
+		},
+		"AzureDataLakeStorage1_accountKey": {
+			"type": "secureString",
+			"metadata": "Secure string for 'accountKey' of 'AzureDataLakeStorage1'"
+		},
+		"retail-data-WorkspaceDefaultSqlServer_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'retail-data-WorkspaceDefaultSqlServer'",
+			"defaultValue": "Integrated Security=False;Encrypt=True;Connection Timeout=30;Data Source=tcp:retail-data.sql.azuresynapse.net,1433;Initial Catalog=@{linkedService().DBName}"
+		},
+		"AzureDataLakeStorage1_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "https://etldevstorage1.dfs.core.windows.net/"
+		},
+		"retail-data-WorkspaceDefaultStorage_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "https://malkeet.dfs.core.windows.net"
+		}
+	},
+	"variables": {
+		"workspaceId": "[concat('Microsoft.Synapse/workspaces/', parameters('workspaceName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('workspaceName'), '/Pipeline 1')]",
+			"type": "Microsoft.Synapse/workspaces/pipelines",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"activities": [
+					{
+						"name": "foreach_bronze_tables",
+						"type": "ForEach",
+						"dependsOn": [],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@createArray('customers','sales','sales_orders')",
+								"type": "Expression"
+							},
+							"activities": [
+								{
+									"name": "nb_process_bronze",
+									"type": "SynapseNotebook",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"notebook": {
+											"referenceName": "nb_bronze_ngestion",
+											"type": "NotebookReference"
+										},
+										"parameters": {
+											"table_name": {
+												"value": {
+													"value": "@item()",
+													"type": "Expression"
+												},
+												"type": "string"
+											},
+											"source_path": {
+												"value": {
+													"value": "@concat('abfss://retail-data@etldevstorage1.dfs.core.windows.net/',item(),'/*')",
+													"type": "Expression"
+												},
+												"type": "string"
+											},
+											"target_path": {
+												"value": {
+													"value": "@concat('abfss://bronze@etldevstorage1.dfs.core.windows.net",
+													"type": "Expression"
+												},
+												"type": "string"
+											}
+										},
+										"snapshot": true,
+										"conf": {
+											"spark.dynamicAllocation.enabled": null,
+											"spark.dynamicAllocation.minExecutors": null,
+											"spark.dynamicAllocation.maxExecutors": null
+										},
+										"numExecutors": null
+									}
+								}
+							]
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/notebooks/nb_bronze_ngestion')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/Json1')]",
+			"type": "Microsoft.Synapse/workspaces/datasets",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "retail-data-WorkspaceDefaultStorage",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "Json",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"folderPath": "synapse/workspaces/retail-data",
+						"fileSystem": "retail-data"
+					}
+				},
+				"schema": {}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/linkedServices/retail-data-WorkspaceDefaultStorage')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/Json2')]",
+			"type": "Microsoft.Synapse/workspaces/datasets",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "retail-data-WorkspaceDefaultStorage",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "Json",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation"
+					}
+				},
+				"schema": {}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/linkedServices/retail-data-WorkspaceDefaultStorage')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/AzureDataLakeStorage1')]",
+			"type": "Microsoft.Synapse/workspaces/linkedServices",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"annotations": [],
+				"type": "AzureBlobFS",
+				"typeProperties": {
+					"url": "[parameters('AzureDataLakeStorage1_properties_typeProperties_url')]",
+					"accountKey": {
+						"type": "SecureString",
+						"value": "[parameters('AzureDataLakeStorage1_accountKey')]"
+					}
+				},
+				"connectVia": {
+					"referenceName": "AutoResolveIntegrationRuntime",
+					"type": "IntegrationRuntimeReference"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/integrationRuntimes/AutoResolveIntegrationRuntime')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/retail-data-WorkspaceDefaultSqlServer')]",
+			"type": "Microsoft.Synapse/workspaces/linkedServices",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"parameters": {
+					"DBName": {
+						"type": "String"
+					}
+				},
+				"annotations": [],
+				"type": "AzureSqlDW",
+				"typeProperties": {
+					"connectionString": "[parameters('retail-data-WorkspaceDefaultSqlServer_connectionString')]"
+				},
+				"connectVia": {
+					"referenceName": "AutoResolveIntegrationRuntime",
+					"type": "IntegrationRuntimeReference"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/integrationRuntimes/AutoResolveIntegrationRuntime')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/retail-data-WorkspaceDefaultStorage')]",
+			"type": "Microsoft.Synapse/workspaces/linkedServices",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"annotations": [],
+				"type": "AzureBlobFS",
+				"typeProperties": {
+					"url": "[parameters('retail-data-WorkspaceDefaultStorage_properties_typeProperties_url')]"
+				},
+				"connectVia": {
+					"referenceName": "AutoResolveIntegrationRuntime",
+					"type": "IntegrationRuntimeReference"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/integrationRuntimes/AutoResolveIntegrationRuntime')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/AutoResolveIntegrationRuntime')]",
+			"type": "Microsoft.Synapse/workspaces/integrationRuntimes",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"type": "Managed",
+				"typeProperties": {
+					"computeProperties": {
+						"location": "AutoResolve",
+						"dataFlowProperties": {
+							"computeType": "General",
+							"coreCount": 8,
+							"timeToLive": 0
+						}
+					}
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/WorkspaceSystemIdentity')]",
+			"type": "Microsoft.Synapse/workspaces/credentials",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"type": "ManagedIdentity",
+				"typeProperties": {}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/SQL script 1')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "CREATE EXTERNAL DATA SOURCE bronze_source\nWITH (\n   LOCATION = 'https://etldevstorage1.blob.core.windows.net/bronze/' \n)\n\n\n\nCREATE EXTERNAL FILE FORMAT DeltaFormat\nWITH(\n    FORMAT_TYPE = DELTA\n)\n\nCREATE DATABASE \"bronze_db\"\n\n    \n\nCREATE EXTERNAL TABLE dbo.customers\n(\n    customer_id       INT NULL,\n    tax_id            FLOAT NULL,\n    tax_code          NVARCHAR(50) NULL,\n    customer_name     NVARCHAR(200) NULL,\n    state             NVARCHAR(100) NULL,\n    city              NVARCHAR(100) NULL,\n    postcode          NVARCHAR(20) NULL,\n    street            NVARCHAR(200) NULL,\n    number            NVARCHAR(20) NULL,\n    unit              NVARCHAR(50) NULL,\n    region            NVARCHAR(100) NULL,\n    district          NVARCHAR(100) NULL,\n    lon               FLOAT NULL,\n    lat               FLOAT NULL,\n    ship_to_address   NVARCHAR(300) NULL,\n    valid_from        INT NULL,\n    valid_to          FLOAT NULL,\n    units_purchased   INT NULL,\n    loyalty_segment   INT NULL,\n    file_path         NVARCHAR(500) NULL,\n    last_updated_ts   DATETIME NULL\n)\nWITH (\n    LOCATION = 'customers/',\n    DATA_SOURCE = bronze_source,\n    FILE_FORMAT = DeltaFormat\n)\n\n\n\n\n\n--------------------\n\nCREATE EXTERNAL TABLE dbo.sales\n(\n    customer_id       INT NULL,\n    customer_name     NVARCHAR(200) NULL,\n    product_name      NVARCHAR(200) NULL,\n    order_date        DATE NULL,\n    product_category  NVARCHAR(100) NULL,\n    product           NVARCHAR(200) NULL,\n    total_price       INT NULL,\n    last_update_ts    DATETIME NULL,\n    file_path         NVARCHAR(500) NULL\n)\nWITH (\n    LOCATION = 'sales/',\n    DATA_SOURCE = bronze_source,\n    FILE_FORMAT = DeltaFormat\n);\n\n------------------------\n\nCREATE EXTERNAL TABLE dbo.sales_orders\n(\n    clicked_items         NVARCHAR(500) NULL,\n    customer_id           INT NULL,\n    customer_name         NVARCHAR(200) NULL,\n    number_of_line_items  INT NULL,\n    order_datetime        FLOAT NULL,\n    order_number          INT NULL,\n    ordered_products      NVARCHAR(500) NULL,\n    promo_info            NVARCHAR(500) NULL,\n    last_update_ts        DATETIME NULL,\n    file_path             NVARCHAR(500) NULL\n)\nWITH (\n    LOCATION = 'sales_orders/',\n    DATA_SOURCE = bronze_source,\n    FILE_FORMAT = DeltaFormat\n);\n\n\n------------------------\n\n\n\n\n\n",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "bronze_db",
+						"poolName": "Built-in"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/nb_bronze_ngestion')]",
+			"type": "Microsoft.Synapse/workspaces/notebooks",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"nbformat": 4,
+				"nbformat_minor": 2,
+				"bigDataPool": {
+					"referenceName": "sparkpool",
+					"type": "BigDataPoolReference"
+				},
+				"sessionProperties": {
+					"driverMemory": "28g",
+					"driverCores": 4,
+					"executorMemory": "28g",
+					"executorCores": 4,
+					"numExecutors": 2,
+					"conf": {
+						"spark.dynamicAllocation.enabled": "false",
+						"spark.dynamicAllocation.minExecutors": "2",
+						"spark.dynamicAllocation.maxExecutors": "2",
+						"spark.autotune.trackingId": "9e59e603-8352-43a3-9838-df754ab8381e"
+					}
+				},
+				"metadata": {
+					"saveOutput": true,
+					"enableDebugMode": false,
+					"kernelspec": {
+						"name": "synapse_pyspark",
+						"display_name": "Synapse PySpark"
+					},
+					"language_info": {
+						"name": "python"
+					},
+					"a365ComputeOptions": {
+						"id": "/subscriptions/518d08ee-196e-4449-ad75-47454712fd79/resourceGroups/etl/providers/Microsoft.Synapse/workspaces/retail-data/bigDataPools/sparkpool",
+						"name": "sparkpool",
+						"type": "Spark",
+						"endpoint": "https://retail-data.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/sparkpool",
+						"auth": {
+							"type": "AAD",
+							"authResource": "https://dev.azuresynapse.net"
+						},
+						"sparkVersion": "3.5",
+						"nodeCount": 3,
+						"cores": 4,
+						"memory": 28,
+						"automaticScaleJobs": false
+					},
+					"sessionKeepAliveTimeout": 30
+				},
+				"cells": [
+					{
+						"cell_type": "code",
+						"metadata": {
+							"collapsed": false
+						},
+						"source": [
+							"from pyspark.sql.functions import *\n",
+							"from pyspark.sql.types import *\n",
+							"\n",
+							"customers_df = spark.read.format(\"csv\") \\\n",
+							"    .option(\"header\", \"true\") \\\n",
+							"    .option(\"inferSchema\", \"true\") \\\n",
+							"    .load(\"abfss://retail-data@etldevstorage1.dfs.core.windows.net/customers/*\")\n",
+							"\n",
+							"display(customers_df)"
+						],
+						"outputs": [],
+						"execution_count": 7
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"collapsed": false
+						},
+						"source": [
+							"bronze_df = customers_df \\\n",
+							"    .withColumn(\"file_path\", input_file_name()) \\\n",
+							"    .withColumn(\"last_update_ts\", current_timestamp())\n",
+							"\n",
+							"display(bronze_df)"
+						],
+						"outputs": [],
+						"execution_count": 8
+					},
+					{
+						"cell_type": "code",
+						"metadata": {},
+						"source": [
+							"bronze_df.write.format(\"delta\") \\\n",
+							"    .mode(\"overwrite\") \\\n",
+							"    .option(\"overwriteSchema\", \"true\") \\\n",
+							"    .save(\"abfss://bronze@etldevstorage1.dfs.core.windows.net/customers/\")\n",
+							"\n",
+							"print(\"✅ Data written successfully!\")"
+						],
+						"outputs": [],
+						"execution_count": 9
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"collapsed": false
+						},
+						"source": [
+							"from pyspark.sql.functions import *\n",
+							"from pyspark.sql.types import *\n",
+							"\n",
+							"sales_df = spark.read.format(\"csv\") \\\n",
+							"    .option(\"header\", \"true\") \\\n",
+							"    .option(\"inferSchema\", \"true\") \\\n",
+							"    .load(\"abfss://retail-data@etldevstorage1.dfs.core.windows.net/sales/*\")\n",
+							"\n",
+							"display(sales_df)"
+						],
+						"outputs": [],
+						"execution_count": 10
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"collapsed": false
+						},
+						"source": [
+							"bronze_df = sales_df \\\n",
+							"    .withColumn(\"file_path\", input_file_name()) \\\n",
+							"    .withColumn(\"last_update_ts\", current_timestamp())\n",
+							"\n",
+							"display(bronze_df)"
+						],
+						"outputs": [],
+						"execution_count": 11
+					},
+					{
+						"cell_type": "code",
+						"metadata": {},
+						"source": [
+							"bronze_df.write.format(\"delta\") \\\n",
+							"    .mode(\"overwrite\") \\\n",
+							"    .option(\"overwriteSchema\", \"true\") \\\n",
+							"    .save(\"abfss://bronze@etldevstorage1.dfs.core.windows.net/sales/\")\n",
+							"\n",
+							"print(\"✅ Data written successfully!\")"
+						],
+						"outputs": [],
+						"execution_count": 12
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"collapsed": false
+						},
+						"source": [
+							"# Cell 1 - Read\n",
+							"from pyspark.sql.functions import input_file_name, current_timestamp\n",
+							"\n",
+							"sales_orders_df = spark.read.format(\"csv\") \\\n",
+							"    .option(\"header\", \"true\") \\\n",
+							"    .option(\"inferSchema\", \"true\") \\\n",
+							"    .load(\"abfss://retail-data@etldevstorage1.dfs.core.windows.net/sales_orders/*\")\n",
+							"\n",
+							"display(sales_orders_df)"
+						],
+						"outputs": [],
+						"execution_count": 14
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"collapsed": false
+						},
+						"source": [
+							"# Cell 2 - Add metadata\n",
+							"bronze_df = sales_orders_df \\\n",
+							"    .withColumn(\"file_path\", input_file_name()) \\\n",
+							"    .withColumn(\"last_update_ts\", current_timestamp())\n",
+							"\n",
+							"display(bronze_df)"
+						],
+						"outputs": [],
+						"execution_count": 15
+					},
+					{
+						"cell_type": "code",
+						"metadata": {},
+						"source": [
+							"# Cell 3 - Write to bronze\n",
+							"bronze_df.write.format(\"delta\") \\\n",
+							"    .mode(\"overwrite\") \\\n",
+							"    .option(\"overwriteSchema\", \"true\") \\\n",
+							"    .save(\"abfss://bronze@etldevstorage1.dfs.core.windows.net/sales_orders/\")\n",
+							"\n",
+							"print(\"✅ Data written successfully!\")"
+						],
+						"outputs": [],
+						"execution_count": 16
+					},
+					{
+						"cell_type": "code",
+						"metadata": {},
+						"source": [
+							""
+						],
+						"outputs": [],
+						"execution_count": null
+					}
+				]
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/sparkpool')]",
+			"type": "Microsoft.Synapse/workspaces/bigDataPools",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"autoPause": {
+					"enabled": true,
+					"delayInMinutes": 15
+				},
+				"autoScale": {
+					"enabled": true,
+					"maxNodeCount": 3,
+					"minNodeCount": 3
+				},
+				"nodeCount": 0,
+				"nodeSize": "Small",
+				"nodeSizeFamily": "MemoryOptimized",
+				"sparkVersion": "3.5",
+				"isComputeIsolationEnabled": false,
+				"sessionLevelPackagesEnabled": true,
+				"annotations": []
+			},
+			"dependsOn": [],
+			"location": "centralus"
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/sqlpool')]",
+			"type": "Microsoft.Synapse/workspaces/sqlPools",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"collation": "SQL_Latin1_General_CP1_CI_AS",
+				"maxSizeBytes": 263882790666240,
+				"annotations": []
+			},
+			"dependsOn": [],
+			"location": "centralus"
+		}
+	]
+}
